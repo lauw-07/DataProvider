@@ -37,7 +37,7 @@ namespace PolygonData {
 
             try {
                 response.EnsureSuccessStatusCode();
-            } catch (HttpRequestException ex) {
+            } catch (Exception ex) {
                 Console.WriteLine(ex.Message);
                 return new PolygonStockPriceData();
             }

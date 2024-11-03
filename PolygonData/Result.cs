@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -32,7 +33,7 @@ namespace PolygonData {
         public int Transactions { get; set; }
 
         public Result() {
-            Volume = default(double);
+            Volume = default(int);
             VolumeWeightedPrice = default(double);
             Open = default(double);
             Close = default(double);

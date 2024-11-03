@@ -11,13 +11,13 @@ namespace SQLDatabase
         public int PriceID { get; set; }
         public int InstrumentID { get; set; }
         public DateTime PxDate { get; set; }
-        public float OpenPx { get; set; }
-        public float ClosePx { get; set; }
-        public float HighPx { get; set; }
-        public float LowPx { get; set; }
-        public int Volume { get; set; }
+        public double OpenPx { get; set; }
+        public double ClosePx { get; set; }
+        public double HighPx { get; set; }
+        public double LowPx { get; set; }
+        public double Volume { get; set; }
         
-        public PriceData(int priceID, int instrumentID, DateTime pxDate, float openPx, float closePx, float highPx, float lowPx, int volume) {
+        public PriceData(int priceID, int instrumentID, DateTime pxDate, double openPx, double closePx, double highPx, double lowPx, double volume) {
             PriceID = priceID;
             InstrumentID = instrumentID;
             PxDate = pxDate;

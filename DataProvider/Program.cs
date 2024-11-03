@@ -2,6 +2,7 @@
 using PolygonData;
 using System.Text.Json;
 using SQLDatabase;
+using System.Numerics;
 
 namespace DataProvider {
     internal class Program {
@@ -11,9 +12,9 @@ namespace DataProvider {
             while (running) {
                 Console.WriteLine("Select an option:");
                 Console.WriteLine("1: Get New Data from API");
-                Console.WriteLine("2: Get Data from database");
+                Console.WriteLine("2: Read Data from database");
                 Console.WriteLine("3: Write Data to database");
-                Console.WriteLine("4: Exit");
+                Console.WriteLine("4: Exit\n");
 
                 string option = Console.ReadLine() ?? string.Empty;
 
@@ -58,36 +59,101 @@ namespace DataProvider {
             );
 
             PolygonStockPriceData polygonPriceData = await polygonLoader.loadPolygonStockDataAsync();
-            Console.WriteLine("Data loaded");
+            Console.WriteLine("Data loaded\n");
 
-            string fileName = "C:\\Users\\willi\\OneDrive\\Documents\\SPS\\Computer Science\\NEA\\Backend\\DataProvider\\DataProvider\\DataFiles\\PolygonData.txt";
-            await SaveDataToFileAsync(polygonPriceData, fileName);
+            /*
+             * string fileName = "C:\\Users\\willi\\OneDrive\\Documents\\SPS\\Computer Science\\NEA\\Backend\\DataProvider\\DataProvider\\DataFiles\\PolygonData.txt";
+             * await SaveDataToFileAsync(polygonPriceData, fileName);
+            */
+
+            Console.WriteLine("Would you like to save data to the local database?");
+            Console.WriteLine("1: Yes");
+            Console.WriteLine("Any Key: No\n");
+
+            string option = Console.ReadLine() ?? string.Empty;
+            if (option == "1") {
+                DatabaseHandler databaseHandler = ConnectToDatabase();
+
+                await SaveDataToDatabaseFromAPIAsync(polygonPriceData, databaseHandler);
+            }
+        }
+
+        private static async Task SaveDataToDatabaseFromAPIAsync(PolygonStockPriceData polygonPriceData, DatabaseHandler handler) {
+            if (polygonPriceData != null) {
+                string symbol = polygonPriceData.Ticker;
+
+                List<Result> results = polygonPriceData.Results;
+                int count = 0;
+                //Temporary values, these are all in the results
+                foreach (Result result in results) {
+                    DateTimeOffset offset = DateTimeOffset.FromUnixTimeMilliseconds(result.Timestamp);
+                    string pxDate = offset.Date.ToShortDateString();
+                    double openPx = result.Open;
+                    double closePx = result.Close;
+                    double highPx = result.High;
+                    double lowPx = result.Low;
+                    double volume = result.Volume;
+                    
+                    try {
+                        await handler.AddPriceDataAsync(symbol, pxDate, openPx, closePx, highPx, lowPx, volume);
+                        count++;
+                    } catch (Exception ex) {
+                        Console.WriteLine($"An error occurred while adding price data: {ex.Message}\n");
+                    }
+                }
+                Console.WriteLine($"{count} entries saved to database");
+            }
         }
 
         public static async Task ReadFromDatabaseAsync() {
-            var config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
-
-            string connectionString = config.GetConnectionString("DefaultConnection") ?? string.Empty;
-
-            Console.WriteLine("Connecting to database...");
-            MarketDataDb database = new MarketDataDb(connectionString);
+            DatabaseHandler databaseHandler = ConnectToDatabase();
             bool connected = true;
 
             while (connected) {
                 Console.WriteLine("Select an option:");
                 Console.WriteLine("1: View Instrument data");
                 Console.WriteLine("2: View Price data");
-                Console.WriteLine("3: Exit");
+                Console.WriteLine("3: Exit\n");
 
                 //Need to validate the instrument symbols somehow but not sure yet
                 string option = Console.ReadLine() ?? string.Empty;
 
                 switch (option) {
                     case "1":
-                        await GetInstrumentsAsync(database);
+                        await GetInstrumentsAsync(databaseHandler);
                         break;
                     case "2":
-                        await GetPriceDataAsync(database);
+                        await GetPriceDataAsync(databaseHandler);
+                        break;
+                    case "3":
+                        connected = false;
+                        break;
+                    default:
+                        Console.WriteLine("Invalid option. Please try again.\n");
+                        break;
+                }
+            }
+        }
+
+        public static async Task WriteToDatabaseAsync() {
+            DatabaseHandler databaseHandler = ConnectToDatabase();
+            bool connected = true;
+
+            while (connected) {
+                Console.WriteLine("Select an option:");
+                Console.WriteLine("1: Add Instrument Data");
+                Console.WriteLine("2: Add Price Data");
+                Console.WriteLine("3: Exit\n");
+
+                //Need to validate the instrument symbols somehow but not sure yet
+                string option = Console.ReadLine() ?? string.Empty;
+
+                switch (option) {
+                    case "1":
+                        await AddInstrumentsAsync(databaseHandler);
+                        break;
+                    case "2":
+                        await AddPriceDataAsync(databaseHandler);
                         break;
                     case "3":
                         connected = false;
@@ -99,39 +165,113 @@ namespace DataProvider {
             }
         }
 
-        public static async Task WriteToDatabaseAsync() {
+        private static DatabaseHandler ConnectToDatabase() {
+            var config = new ConfigurationBuilder().AddJsonFile("appSettings.json").Build();
 
+            string connectionString = config.GetConnectionString("DefaultConnection") ?? string.Empty;
+
+            Console.WriteLine("Connecting to database...\n");
+            DatabaseHandler databaseHandler = new DatabaseHandler(connectionString);
+            return databaseHandler;
         }
+        private static async Task AddInstrumentsAsync(DatabaseHandler handler) {
+            // Need to add validation for inputs later
+            Console.Write("Enter Instrument Name: ");
+            string name = Console.ReadLine() ?? string.Empty;
 
-        private static async Task GetInstrumentsAsync(MarketDataDb db) {
             Console.Write("Enter Instrument Symbol: ");
             string symbol = Console.ReadLine() ?? string.Empty;
 
-            List<Instrument> instruments = await db.GetInstrumentDataAsync(symbol);
+            Console.Write("Enter Instrument Type (e.g., Stock, Bond): ");
+            string type = Console.ReadLine() ?? string.Empty;
 
-            if (instruments != null) {
-                Console.WriteLine($"{symbol} Data:");
+            Console.Write("Enter Instrument Currency (e.g., USD, EUR): ");
+            string currency = Console.ReadLine() ?? string.Empty;
+
+            try {
+                await handler.AddInstrumentDataAsync(name, symbol, type, currency);
+                Console.WriteLine("Instrument data added successfully.\n");
+            } catch (Exception ex) {
+                Console.WriteLine($"An error occurred while adding instrument data: {ex.Message}\n");
+            }
+        }
+
+        private static async Task AddPriceDataAsync(DatabaseHandler handler) {
+            Console.Write("Enter Instrument Symbol: ");
+            string symbol = Console.ReadLine() ?? string.Empty;
+
+            Console.Write("Enter Price Date (yyyy-MM-dd): ");
+            string pxDate = Console.ReadLine() ?? string.Empty;
+
+            Console.Write("Enter Opening Price: ");
+            double openPx;
+            while (!double.TryParse(Console.ReadLine(), out openPx)) {
+                Console.WriteLine("Invalid input. Please enter a valid opening price: ");
+            }
+
+            Console.Write("Enter Closing Price: ");
+            double closePx;
+            while (!double.TryParse(Console.ReadLine(), out closePx)) {
+                Console.WriteLine("Invalid input. Please enter a valid closing price: ");
+            }
+
+            Console.Write("Enter High Price: ");
+            double highPx;
+            while (!double.TryParse(Console.ReadLine(), out highPx)) {
+                Console.WriteLine("Invalid input. Please enter a valid high price: ");
+            }
+
+            Console.Write("Enter Low Price: ");
+            double lowPx;
+            while (!double.TryParse(Console.ReadLine(), out lowPx)) {
+                Console.WriteLine("Invalid input. Please enter a valid low price: ");
+            }
+
+            Console.Write("Enter Volume: ");
+            int volume;
+            while (!int.TryParse(Console.ReadLine(), out volume)) {
+                Console.WriteLine("Invalid input. Please enter a valid volume: ");
+            }
+
+            try {
+                await handler.AddPriceDataAsync(symbol, pxDate, openPx, closePx, highPx, lowPx, volume);
+                Console.WriteLine("Price data added successfully.\n");
+            } catch (Exception ex) {
+                Console.WriteLine($"An error occurred while adding price data: {ex.Message}\n");
+            }
+        }
+
+
+
+        private static async Task GetInstrumentsAsync(DatabaseHandler handler) {
+            Console.Write("Enter Instrument Symbol: ");
+            string symbol = Console.ReadLine() ?? string.Empty;
+
+            List<Instrument> instruments = await handler.GetInstrumentDataAsync(symbol);
+
+            if (instruments.Any()) {
+                Console.WriteLine($"{symbol} Data:\n");
 
                 foreach (Instrument instrument in instruments) {
                     Console.WriteLine($"ID: {instrument.InstrumentID}");
                     Console.WriteLine($"Name: {instrument.InstrumentName}");
-                    Console.WriteLine($"Symbol: {instrument.InstrumentID}");
-                    Console.WriteLine($"Type: {instrument.InstrumentID}");
-                    Console.WriteLine($"Currency: {instrument.InstrumentID}");
+                    Console.WriteLine($"Symbol: {instrument.InstrumentSymbol}");
+                    Console.WriteLine($"Type: {instrument.InstrumentType}");
+                    Console.WriteLine($"Currency: {instrument.InstrumentCurrency}\n");
                 }
             } else {
-                Console.WriteLine("No data found");
+                Console.WriteLine("No data found\n");
             }
         }
 
-        private static async Task GetPriceDataAsync(MarketDataDb db) {
+        private static async Task GetPriceDataAsync(DatabaseHandler handler) {
             Console.Write("Enter Instrument Symbol: ");
             string symbol = Console.ReadLine() ?? string.Empty;
 
-            List<PriceData> priceDataList = await db.GetPriceDataAsync(symbol);
+            List<PriceData> priceDataList = await handler.GetPriceDataAsync(symbol);
 
-            if (priceDataList != null) {
-                Console.WriteLine($"{symbol} Data:");
+            if (priceDataList.Any()) {
+                Console.WriteLine($"{symbol} Data:\n");
 
                 foreach (PriceData priceData in priceDataList) {
                     Console.WriteLine($"PriceID: {priceData.PriceID}");
@@ -141,10 +281,10 @@ namespace DataProvider {
                     Console.WriteLine($"Closing Price: {priceData.ClosePx}");
                     Console.WriteLine($"High Price: {priceData.HighPx}");
                     Console.WriteLine($"Low Price: {priceData.LowPx}");
-                    Console.WriteLine($"Volume: {priceData.Volume}");
+                    Console.WriteLine($"Volume: {priceData.Volume}\n");
                 }
             } else {
-                Console.WriteLine("No data found");
+                Console.WriteLine("No data found\n");
             }
         }
 
@@ -193,14 +333,14 @@ namespace DataProvider {
                 using (StreamWriter sw = new StreamWriter(fs)) {
                     Console.WriteLine("Saving data...");
                     await sw.WriteAsync(output);
-                    Console.WriteLine($"Data saved to {filePath}");
+                    Console.WriteLine($"Data saved to {filePath}\n");
                 }
             } catch (IOException) {
                 Console.WriteLine("\nFile already exists...\nAppending to file...\n");
 
                 using (StreamWriter sw = File.AppendText(filePath)) {
                     await sw.WriteAsync(output);
-                    Console.WriteLine($"Data saved to {filePath}");
+                    Console.WriteLine($"Data saved to {filePath}\n");
                 }
             }
         }

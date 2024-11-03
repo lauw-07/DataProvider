@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.SqlClient;
 using System.Diagnostics.Metrics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace SQLDatabase {
@@ -11,10 +12,10 @@ namespace SQLDatabase {
         StrategyResults
     }
 
-    public class MarketDataDb {
+    public class DatabaseHandler {
         private string _connectionString;
 
-        public MarketDataDb(string connectionString) {
+        public DatabaseHandler(string connectionString) {
             _connectionString = connectionString;
         }
 
@@ -76,10 +77,10 @@ namespace SQLDatabase {
                             reader.GetInt32(reader.GetOrdinal("PriceID")),
                             reader.GetInt32(reader.GetOrdinal("InstrumentID")),
                             reader.GetDateTime(reader.GetOrdinal("PxDate")),
-                            reader.GetFloat(reader.GetOrdinal("OpenPx")),
-                            reader.GetFloat(reader.GetOrdinal("ClosePx")),
-                            reader.GetFloat(reader.GetOrdinal("HighPx")),
-                            reader.GetFloat(reader.GetOrdinal("LowPx")),
+                            reader.Getdouble(reader.GetOrdinal("OpenPx")),
+                            reader.Getdouble(reader.GetOrdinal("ClosePx")),
+                            reader.Getdouble(reader.GetOrdinal("HighPx")),
+                            reader.Getdouble(reader.GetOrdinal("LowPx")),
                             reader.GetInt32(reader.GetOrdinal("Volume"))
                         );
 
@@ -91,7 +92,7 @@ namespace SQLDatabase {
             return priceDataList;
         }
 
-        public async Task AddPriceDataAsync(string symbol, DateTime pxDate, float openPx, float closePx, float highPx, float lowPx, int volume) {
+        public async Task AddPriceDataAsync(string symbol, string pxDate, double openPx, double closePx, double highPx, double lowPx, double volume) {
             int instrumentID = await GetInstrumentIDAsync(symbol);
 
             using (SqlConnection connection = new SqlConnection(_connectionString)) {
