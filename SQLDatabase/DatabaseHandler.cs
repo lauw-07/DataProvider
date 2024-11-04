@@ -77,10 +77,10 @@ namespace SQLDatabase {
                             reader.GetInt32(reader.GetOrdinal("PriceID")),
                             reader.GetInt32(reader.GetOrdinal("InstrumentID")),
                             reader.GetDateTime(reader.GetOrdinal("PxDate")),
-                            reader.Getdouble(reader.GetOrdinal("OpenPx")),
-                            reader.Getdouble(reader.GetOrdinal("ClosePx")),
-                            reader.Getdouble(reader.GetOrdinal("HighPx")),
-                            reader.Getdouble(reader.GetOrdinal("LowPx")),
+                            reader.GetDouble(reader.GetOrdinal("OpenPx")),
+                            reader.GetDouble(reader.GetOrdinal("ClosePx")),
+                            reader.GetDouble(reader.GetOrdinal("HighPx")),
+                            reader.GetDouble(reader.GetOrdinal("LowPx")),
                             reader.GetInt32(reader.GetOrdinal("Volume"))
                         );
 
